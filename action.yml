@@ -9,6 +9,10 @@ inputs:
   gpg_passphrase:
     description: "GPG passphrase for building"
     required: true
+  pkgs_directory:
+    description: "Directory of package subdirectories"
+    required: false
+    default: "."
 runs:
   using: "docker"
   image: "Dockerfile"
@@ -16,3 +20,4 @@ runs:
     - ${{ inputs.package_name }}
     - ${{ inputs.gpg_private_key }}
     - ${{ inputs.gpg_passphrase }}
+    - ${{ inputs.pkgs_directory }}
