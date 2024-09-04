@@ -1,4 +1,8 @@
 name: "Build Arch Packages"
+description: "Build ArchLinux packages in Docker container"
+branding:
+  icon: package
+  color: gray-dark
 inputs:
   package_name:
     description: "Package name to build"
