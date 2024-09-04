@@ -1,0 +1,18 @@
+name: "Build Arch Packages"
+inputs:
+  package_name:
+    description: "Package name to build"
+    required: true
+  gpg_private_key:
+    description: "GPG private key for building"
+    required: true
+  gpg_passphrase:
+    description: "GPG passphrase for building"
+    required: true
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - ${{ inputs.package_name }}
+    - ${{ inputs.gpg_private_key }}
+    - ${{ inputs.gpg_passphrase }}
