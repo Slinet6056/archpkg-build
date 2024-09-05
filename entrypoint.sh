@@ -5,10 +5,12 @@ set -e
 pkgname=$1
 gpg_private_key=$2
 gpg_passphrase=$3
-pkgdir=$4
+pkg_path=$4
+repo_name=$5
+repo_path=$6
 
 # Find the PKGBUILD directory
-pkgbuild_dir=$(readlink -f "$pkgdir/$pkgname")
+pkgbuild_dir=$(readlink -f "$pkg_path/$pkgname")
 
 if [[ ! -d $pkgbuild_dir ]]; then
     echo "$pkgbuild_dir should be a directory."
@@ -30,7 +32,6 @@ chown -R builder:builder "$pkgbuild_dir"
 
 # Import GPG key
 sudo -u builder bash <<EOF
-export HOME=/home/builder
 echo "$gpg_private_key" | gpg --batch --import
 EOF
 
@@ -41,8 +42,24 @@ makepkg -srf --noconfirm
 EOF
 
 # Sign package
-sudo -E -u builder bash <<EOF
-export HOME=/home/builder
+sudo -u builder bash <<EOF
 cd "$pkgbuild_dir"
 echo "$gpg_passphrase" | gpg --pinentry-mode loopback --passphrase-fd 0 --detach-sign *.pkg.tar.zst
+EOF
+
+# Check if repo_name and repo_path are provided
+if [ -z "$repo_name" ] || [ -z "$repo_path" ]; then
+    echo "repo_name or repo_path not provided, skipping package repository update"
+    exit 0
+fi
+
+repodir=$(readlink -f "$repo_path")
+mkdir -p "$repodir"
+chown -R builder:builder "$repodir"
+
+# Update the package repository
+sudo -u builder bash <<EOF
+cp "$pkgbuild_dir"/*.pkg.tar.zst* "$repodir"
+cd "$repodir"
+repo-add --verify --sign "$repo_name.db.tar.gz" *.pkg.tar.zst
 EOF

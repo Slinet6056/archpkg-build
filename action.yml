@@ -1,22 +1,28 @@
 name: "Build Arch Packages"
-description: "Build ArchLinux packages in Docker container"
+description: "Build ArchLinux packages in Docker container and optionally update package repository"
 branding:
   icon: package
   color: gray-dark
 inputs:
   package_name:
-    description: "Package name to build"
+    description: "Name of the package to build"
     required: true
   gpg_private_key:
-    description: "GPG private key for building"
+    description: "GPG private key for package signing"
     required: true
   gpg_passphrase:
-    description: "GPG passphrase for building"
+    description: "Passphrase for the GPG private key"
     required: true
-  pkgs_directory:
-    description: "Directory of package subdirectories"
+  pkgs_path:
+    description: "Path to the directory containing package subdirectories (optional)"
     required: false
     default: "."
+  repo_name:
+    description: "Repository name (optional, for repository update)"
+    required: false
+  repo_path:
+    description: "Repository path (optional, for repository update)"
+    required: false
 runs:
   using: "docker"
   image: "Dockerfile"
@@ -24,4 +30,6 @@ runs:
     - ${{ inputs.package_name }}
     - ${{ inputs.gpg_private_key }}
     - ${{ inputs.gpg_passphrase }}
-    - ${{ inputs.pkgs_directory }}
+    - ${{ inputs.pkgs_path }}
+    - ${{ inputs.repo_name }}
+    - ${{ inputs.repo_path }}
