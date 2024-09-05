@@ -15,7 +15,7 @@ with:
   repo_path: repo # optional
 ```
 
-For a more comprehensive example, check out the [demo workflow file](https://github.com/Slinet6056/AUR/blob/master/.github/workflows/build.yml).
+<!-- For a more comprehensive example, check out the [demo workflow file](https://github.com/Slinet6056/AUR/blob/master/.github/workflows/build.yml). -->
 
 ## Inputs
 
@@ -56,6 +56,7 @@ steps:
 - Ensure that your repository contains subdirectories named after each `package_name` within the `pkgs_path` (default: "."). Each subdirectory should contain the necessary `PKGBUILD` file.
 - The GPG private key and passphrase should be stored as secrets in your GitHub repository.
 - When updating a repository, the `repo_path` will be automatically created if it doesn't exist.
+- Automatic repository update may cause conflicts when using matrix strategy.
 
 ## License
 
