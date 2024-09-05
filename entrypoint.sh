@@ -59,7 +59,8 @@ chown -R builder:builder "$repodir"
 
 # Update the package repository
 sudo -u builder bash <<EOF
-cp "$pkgbuild_dir"/*.pkg.tar.zst* "$repodir"
+package_file=\$(basename "$pkgbuild_dir"/*.pkg.tar.zst)
+cp "$pkgbuild_dir"/\$package_file "$pkgbuild_dir"/\$package_file.sig "$repodir"
 cd "$repodir"
-repo-add --verify --sign "$repo_name.db.tar.gz" *.pkg.tar.zst
+repo-add --verify --sign "$repo_name.db.tar.gz" \$package_file
 EOF
