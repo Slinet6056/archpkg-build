@@ -15,6 +15,8 @@ with:
   repo_path: repo # optional
 ```
 
+For a more comprehensive example, check out the [demo workflow file](https://github.com/Slinet6056/AUR/blob/master/.github/workflows/build.yml).
+
 ## Inputs
 
 - `package_name`: Name of the package to build (required)
