@@ -52,11 +52,8 @@ if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && makepkg -srf --noconfirm"; t
     exit 1
 fi
 
-echo "Contents of pkgbuild_dir:"
-ls -l "$pkgbuild_dir"
-
-# Check if package file was created
-package_file=$(find "$pkgbuild_dir" -name "*.pkg.tar.zst" -type f -print -quit)
+# Check if package file was created (excluding debug packages)
+package_file=$(find "$pkgbuild_dir" -name "${pkgname}-[0-9]*.pkg.tar.zst" ! -name "*-debug-*.pkg.tar.zst" -type f -print -quit)
 if [ -z "$package_file" ]; then
     echo "Error: No package file was created during the build process."
     exit 1
@@ -64,8 +61,8 @@ fi
 echo "Package built successfully: $(basename "$package_file")"
 
 echo "Signing package..."
-# Sign package
-if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && echo '$gpg_passphrase' | gpg --pinentry-mode loopback --passphrase-fd 0 --detach-sign *.pkg.tar.zst"; then
+# Sign package (only the non-debug package)
+if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && echo '$gpg_passphrase' | gpg --pinentry-mode loopback --passphrase-fd 0 --detach-sign '$(basename "$package_file")'"; then
     echo "Error: Package signing failed."
     exit 1
 fi
