@@ -27,12 +27,6 @@ if [[ ! -e $pkgbuild_dir/PKGBUILD ]]; then
     exit 1
 fi
 
-# Create builder user
-useradd -m builder
-echo "builder ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
-mkdir -p /home/builder/.gnupg
-chown -R builder:builder /home/builder/.gnupg
-chmod 700 /home/builder/.gnupg
 chown -R builder:builder "$pkgbuild_dir"
 
 echo "Importing GPG key..."
@@ -45,18 +39,26 @@ echo "GPG key imported successfully."
 
 # Build package
 echo "Building package..."
-if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && makepkg -srf --noconfirm"; then
+if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && pikaur -P --noconfirm"; then
     echo "Error: Package build failed."
     exit 1
 fi
 
 # Check if package file was created (excluding debug packages)
-package_file=$(find "$pkgbuild_dir" -name "${pkgname}-[0-9]*.pkg.tar.zst" ! -name "*-debug-*.pkg.tar.zst" -type f -print -quit)
+output_path="/home/builder/.cache/pikaur/pkg"
+package_file=$(find "$output_path" -name "${pkgname}-[0-9]*.pkg.tar.zst" ! -name "*-debug-*.pkg.tar.zst" -type f -print -quit)
 if [ -z "$package_file" ]; then
     echo "Error: No package file was created during the build process."
+    echo "Listing pikaur cache directory contents:"
+    ls -la "$output_path"
     exit 1
 fi
 echo "Package built successfully: $package_file"
+
+# Move package to pkgbuild_dir
+mv "$package_file" "$pkgbuild_dir/"
+package_file="$pkgbuild_dir/$(basename "$package_file")"
+echo "Package moved to: $package_file"
 
 # Sign package (only the non-debug package)
 echo "Signing package..."
@@ -68,6 +70,8 @@ fi
 # Check if signature file was created
 if [ ! -f "${package_file}.sig" ]; then
     echo "Error: Signature file was not created."
+    echo "Listing package directory contents:"
+    ls -la "$pkgbuild_dir"
     exit 1
 fi
 echo "Package signed successfully: ${package_file}.sig"
@@ -92,12 +96,16 @@ if ! sudo -u builder bash -c "
     repo-add --verify --sign '$repo_name.db.tar.gz' '$package_file'
 "; then
     echo "Error: Failed to update package repository."
+    echo "Listing current directory contents:"
+    ls -la "$repodir"
     exit 1
 fi
 
 # Check if database files were created
 if [ ! -f "$repodir/$repo_name.db" ] || [ ! -f "$repodir/$repo_name.files" ]; then
     echo "Error: Repository database files were not created."
+    echo "Listing current directory contents:"
+    ls -la "$repodir"
     exit 1
 fi
 echo "Package repository updated successfully:"
