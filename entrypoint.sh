@@ -48,6 +48,8 @@ fi
 package_file=$(find "$pkgbuild_dir" -name "${pkgname}-[0-9]*.pkg.tar.zst" ! -name "*-debug-*.pkg.tar.zst" -type f -print -quit)
 if [ -z "$package_file" ]; then
     echo "Error: No package file was created during the build process."
+    echo "Listing current directory contents:"
+    ls -la "$pkgbuild_dir"
     exit 1
 fi
 echo "Package built successfully: $package_file"
@@ -62,6 +64,8 @@ fi
 # Check if signature file was created
 if [ ! -f "${package_file}.sig" ]; then
     echo "Error: Signature file was not created."
+    echo "Listing current directory contents:"
+    ls -la "$pkgbuild_dir"
     exit 1
 fi
 echo "Package signed successfully: ${package_file}.sig"
@@ -86,12 +90,16 @@ if ! sudo -u builder bash -c "
     repo-add --verify --sign '$repo_name.db.tar.gz' '$package_file'
 "; then
     echo "Error: Failed to update package repository."
+    echo "Listing current directory contents:"
+    ls -la "$repodir"
     exit 1
 fi
 
 # Check if database files were created
 if [ ! -f "$repodir/$repo_name.db" ] || [ ! -f "$repodir/$repo_name.files" ]; then
     echo "Error: Repository database files were not created."
+    echo "Listing current directory contents:"
+    ls -la "$repodir"
     exit 1
 fi
 echo "Package repository updated successfully:"
