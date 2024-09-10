@@ -78,18 +78,18 @@ if [ -z "$repo_name" ] || [ -z "$repo_path" ]; then
     exit 0
 fi
 
+# Update the package repository
+echo "Updating package repository..."
+
 repodir=$(readlink -f "$repo_path")
 mkdir -p "$repodir"
+cp "$package_file" "$package_file.sig" "$repodir/"
 chown -R builder:builder "$repodir"
 echo "Repository directory: $repodir"
 
-# Update the package repository
-echo "Updating package repository..."
 if ! sudo -u builder bash -c "
-    package_file=\$(basename '$package_file')
-    cp '$package_file' '$package_file.sig' '$repodir/'
     cd '$repodir'
-    repo-add --verify --sign '$repo_name.db.tar.gz' '\$package_file'
+    repo-add --verify --sign '$repo_name.db.tar.gz' '$package_file'
 "; then
     echo "Error: Failed to update package repository."
     exit 1
