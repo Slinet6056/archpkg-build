@@ -45,14 +45,20 @@ if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && pikaur -P --noconfirm"; then
 fi
 
 # Check if package file was created (excluding debug packages)
-package_file=$(find "$pkgbuild_dir" -name "${pkgname}-[0-9]*.pkg.tar.zst" ! -name "*-debug-*.pkg.tar.zst" -type f -print -quit)
+output_path="/home/builder/.cache/pikaur/pkg"
+package_file=$(find "$output_path" -name "${pkgname}-[0-9]*.pkg.tar.zst" ! -name "*-debug-*.pkg.tar.zst" -type f -print -quit)
 if [ -z "$package_file" ]; then
     echo "Error: No package file was created during the build process."
-    echo "Listing current directory contents:"
-    ls -la "$pkgbuild_dir"
+    echo "Listing pikaur cache directory contents:"
+    ls -la "$output_path"
     exit 1
 fi
 echo "Package built successfully: $package_file"
+
+# Move package to pkgbuild_dir
+mv "$package_file" "$pkgbuild_dir/"
+package_file="$pkgbuild_dir/$(basename "$package_file")"
+echo "Package moved to: $package_file"
 
 # Sign package (only the non-debug package)
 echo "Signing package..."
@@ -64,7 +70,7 @@ fi
 # Check if signature file was created
 if [ ! -f "${package_file}.sig" ]; then
     echo "Error: Signature file was not created."
-    echo "Listing current directory contents:"
+    echo "Listing package directory contents:"
     ls -la "$pkgbuild_dir"
     exit 1
 fi
