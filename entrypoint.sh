@@ -2,6 +2,8 @@
 
 set -e
 
+echo "Starting package build and repository update process..."
+
 pkgname=$1
 gpg_private_key=$2
 gpg_passphrase=$3
@@ -9,16 +11,19 @@ pkg_path=$4
 repo_name=$5
 repo_path=$6
 
+echo "Input parameters received: pkgname=$pkgname, pkg_path=$pkg_path, repo_name=$repo_name, repo_path=$repo_path"
+
 # Find the PKGBUILD directory
 pkgbuild_dir=$(readlink -f "$pkg_path/$pkgname")
+echo "PKGBUILD directory: $pkgbuild_dir"
 
 if [[ ! -d $pkgbuild_dir ]]; then
-    echo "$pkgbuild_dir should be a directory."
+    echo "Error: $pkgbuild_dir should be a directory."
     exit 1
 fi
 
 if [[ ! -e $pkgbuild_dir/PKGBUILD ]]; then
-    echo "$pkgbuild_dir does not contain a PKGBUILD file."
+    echo "Error: $pkgbuild_dir does not contain a PKGBUILD file."
     exit 1
 fi
 
@@ -30,22 +35,42 @@ chown -R builder:builder /home/builder/.gnupg
 chmod 700 /home/builder/.gnupg
 chown -R builder:builder "$pkgbuild_dir"
 
+echo "Importing GPG key..."
 # Import GPG key
-sudo -u builder bash <<EOF
-echo "$gpg_private_key" | gpg --batch --import
-EOF
+if ! sudo -u builder gpg --batch --import <<< "$gpg_private_key"; then
+    echo "Error: Failed to import GPG key."
+    exit 1
+fi
+echo "GPG key imported successfully."
 
 # Build package
-sudo -u builder bash <<EOF
-cd "$pkgbuild_dir"
-makepkg -srf --noconfirm
-EOF
+echo "Building package..."
+if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && makepkg -srf --noconfirm"; then
+    echo "Error: Package build failed."
+    exit 1
+fi
 
-# Sign package
-sudo -u builder bash <<EOF
-cd "$pkgbuild_dir"
-echo "$gpg_passphrase" | gpg --pinentry-mode loopback --passphrase-fd 0 --detach-sign *.pkg.tar.zst
-EOF
+# Check if package file was created (excluding debug packages)
+package_file=$(find "$pkgbuild_dir" -name "${pkgname}-[0-9]*.pkg.tar.zst" ! -name "*-debug-*.pkg.tar.zst" -type f -print -quit)
+if [ -z "$package_file" ]; then
+    echo "Error: No package file was created during the build process."
+    exit 1
+fi
+echo "Package built successfully: $package_file"
+
+# Sign package (only the non-debug package)
+echo "Signing package..."
+if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && echo '$gpg_passphrase' | gpg --pinentry-mode loopback --passphrase-fd 0 --detach-sign '$(basename "$package_file")'"; then
+    echo "Error: Package signing failed."
+    exit 1
+fi
+
+# Check if signature file was created
+if [ ! -f "${package_file}.sig" ]; then
+    echo "Error: Signature file was not created."
+    exit 1
+fi
+echo "Package signed successfully: ${package_file}.sig"
 
 # Check if repo_name and repo_path are provided
 if [ -z "$repo_name" ] || [ -z "$repo_path" ]; then
@@ -53,14 +78,29 @@ if [ -z "$repo_name" ] || [ -z "$repo_path" ]; then
     exit 0
 fi
 
+# Update the package repository
+echo "Updating package repository..."
+
 repodir=$(readlink -f "$repo_path")
 mkdir -p "$repodir"
+cp "$package_file" "$package_file.sig" "$repodir/"
 chown -R builder:builder "$repodir"
+echo "Repository directory: $repodir"
 
-# Update the package repository
-sudo -u builder bash <<EOF
-package_file=\$(basename "$pkgbuild_dir"/*.pkg.tar.zst)
-cp "$pkgbuild_dir/\$package_file" "$pkgbuild_dir/\$package_file.sig" "$repodir/"
-cd "$repodir"
-repo-add --verify --sign "$repo_name.db.tar.gz" "\$package_file"
-EOF
+if ! sudo -u builder bash -c "
+    cd '$repodir'
+    repo-add --verify --sign '$repo_name.db.tar.gz' '$package_file'
+"; then
+    echo "Error: Failed to update package repository."
+    exit 1
+fi
+
+# Check if database files were created
+if [ ! -f "$repodir/$repo_name.db" ] || [ ! -f "$repodir/$repo_name.files" ]; then
+    echo "Error: Repository database files were not created."
+    exit 1
+fi
+echo "Package repository updated successfully:"
+ls -l "$repodir"
+
+echo "Package build and repository update process completed."
