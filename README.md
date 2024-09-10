@@ -28,7 +28,7 @@ with:
 
 1. The action uses a Docker container based on the `archlinux:base-devel` image.
 2. It sets up a build environment and creates a non-root user for building packages and signing them.
-3. The specified package is built using `makepkg`.
+3. The specified package is built using `pikaur`.
 4. The built package is signed using the provided GPG key.
 5. If `repo_name` and `repo_path` are provided, the action updates the package repository.
 

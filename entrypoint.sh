@@ -27,12 +27,6 @@ if [[ ! -e $pkgbuild_dir/PKGBUILD ]]; then
     exit 1
 fi
 
-# Create builder user
-useradd -m builder
-echo "builder ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
-mkdir -p /home/builder/.gnupg
-chown -R builder:builder /home/builder/.gnupg
-chmod 700 /home/builder/.gnupg
 chown -R builder:builder "$pkgbuild_dir"
 
 echo "Importing GPG key..."
@@ -45,7 +39,7 @@ echo "GPG key imported successfully."
 
 # Build package
 echo "Building package..."
-if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && makepkg -srf --noconfirm"; then
+if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && pikaur -P --noconfirm"; then
     echo "Error: Package build failed."
     exit 1
 fi
