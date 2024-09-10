@@ -27,7 +27,6 @@ if [[ ! -e $pkgbuild_dir/PKGBUILD ]]; then
     exit 1
 fi
 
-echo "Creating builder user..."
 # Create builder user
 useradd -m builder
 echo "builder ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
@@ -35,7 +34,6 @@ mkdir -p /home/builder/.gnupg
 chown -R builder:builder /home/builder/.gnupg
 chmod 700 /home/builder/.gnupg
 chown -R builder:builder "$pkgbuild_dir"
-echo "Builder user created and directories set up."
 
 echo "Importing GPG key..."
 # Import GPG key
@@ -45,8 +43,8 @@ if ! sudo -u builder gpg --batch --import <<< "$gpg_private_key"; then
 fi
 echo "GPG key imported successfully."
 
-echo "Building package..."
 # Build package
+echo "Building package..."
 if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && makepkg -srf --noconfirm"; then
     echo "Error: Package build failed."
     exit 1
@@ -58,10 +56,10 @@ if [ -z "$package_file" ]; then
     echo "Error: No package file was created during the build process."
     exit 1
 fi
-echo "Package built successfully: $(basename "$package_file")"
+echo "Package built successfully: $package_file"
 
-echo "Signing package..."
 # Sign package (only the non-debug package)
+echo "Signing package..."
 if ! sudo -u builder bash -c "cd '$pkgbuild_dir' && echo '$gpg_passphrase' | gpg --pinentry-mode loopback --passphrase-fd 0 --detach-sign '$(basename "$package_file")'"; then
     echo "Error: Package signing failed."
     exit 1
@@ -72,7 +70,7 @@ if [ ! -f "${package_file}.sig" ]; then
     echo "Error: Signature file was not created."
     exit 1
 fi
-echo "Package signed successfully."
+echo "Package signed successfully: ${package_file}.sig"
 
 # Check if repo_name and repo_path are provided
 if [ -z "$repo_name" ] || [ -z "$repo_path" ]; then
@@ -80,14 +78,13 @@ if [ -z "$repo_name" ] || [ -z "$repo_path" ]; then
     exit 0
 fi
 
-echo "Preparing repository directory..."
 repodir=$(readlink -f "$repo_path")
 mkdir -p "$repodir"
 chown -R builder:builder "$repodir"
-echo "Repository directory prepared: $repodir"
+echo "Repository directory: $repodir"
 
-echo "Updating package repository..."
 # Update the package repository
+echo "Updating package repository..."
 if ! sudo -u builder bash -c "
     package_file=\$(basename '$package_file')
     cp '$package_file' '$package_file.sig' '$repodir/'
@@ -103,6 +100,7 @@ if [ ! -f "$repodir/$repo_name.db" ] || [ ! -f "$repodir/$repo_name.files" ]; th
     echo "Error: Repository database files were not created."
     exit 1
 fi
-echo "Package repository updated successfully."
+echo "Package repository updated successfully:"
+ls -l "$repodir"
 
 echo "Package build and repository update process completed."
