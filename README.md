@@ -36,9 +36,8 @@ with:
 
 After running this action, you can expect the following results:
 
-1. The specified package will be built and signed in the `pkgs_path/<package_name>` directory. The built package (`.pkg.tar.zst`) and its signature (`.pkg.tar.zst.sig`) will be available in this directory.
-2. If `repo_name` and `repo_path` are provided, the package repository will be updated with the new package.
-3. If the repository is updated, the new repository database files will be available in the specified `repo_path`.
+1. The built package (`.pkg.tar.zst`) and its signature (`.pkg.tar.zst.sig`) will be available in the package's build directory.
+2. If `repo_name` and `repo_path` are provided, the package repository will be updated with the new package. The updated repository, including the new package file, its signature, and the updated database files, will be available in the specified `repo_path`.
 
 These outputs can be utilized in subsequent steps of your workflow for various purposes.
 
@@ -62,7 +61,7 @@ steps:
 ## Notes
 
 - Ensure that your repository contains subdirectories named after each `package_name` within the `pkgs_path` (default: "."). Each subdirectory should contain the necessary `PKGBUILD` file.
-- The GPG private key and passphrase should be stored as secrets in your GitHub repository.
+- Store the complete GPG private key (including header and footer) and passphrase as separate secrets in your GitHub repository.
 - When updating a repository, the `repo_path` will be automatically created if it doesn't exist.
 - Automatic repository update may cause conflicts when using matrix strategy. To resolve this issue, you can use the [Matrix Lock](https://github.com/marketplace/actions/matrix-lock) action. This action allows you to control the execution order of jobs, preventing conflicts during repository updates. For a specific implementation example, please refer to [this workflow file](https://github.com/Slinet6056/AUR/blob/master/.github/workflows/build.yml).
 
