@@ -5,7 +5,7 @@ This action builds ArchLinux packages in a Docker container and optionally updat
 ## Example usage
 
 ```yml
-uses: Slinet6056/archpkg-build@master
+uses: Slinet6056/archpkg-build@v1
 with:
   package_name: pkg
   gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -51,7 +51,7 @@ strategy:
     pkgs: [pkg1, pkg2]
 
 steps:
-  - uses: Slinet6056/archpkg-build@master
+  - uses: Slinet6056/archpkg-build@v1
     with:
       package_name: ${{ matrix.pkgs }}
       gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -63,7 +63,7 @@ steps:
 - Ensure that your repository contains subdirectories named after each `package_name` within the `pkgs_path` (default: "."). Each subdirectory should contain the necessary `PKGBUILD` file.
 - Store the complete GPG private key (including header and footer) and passphrase as separate secrets in your GitHub repository.
 - When updating a repository, the `repo_path` will be automatically created if it doesn't exist.
-- Automatic repository update may cause conflicts when using matrix strategy. To resolve this issue, you can use the [Matrix Lock](https://github.com/marketplace/actions/matrix-lock) action. This action allows you to control the execution order of jobs, preventing conflicts during repository updates. For a specific implementation example, please refer to [this workflow file](https://github.com/Slinet6056/AUR/blob/master/.github/workflows/build.yml).
+- Automatic repository update may cause conflicts when using matrix strategy. To resolve this issue, you can use the [Matrix Sequential Lock](https://github.com/marketplace/actions/matrix-sequential-lock) action. This action allows you to control the execution order of jobs, preventing conflicts during repository updates. For a specific implementation example, please refer to [examples/advanced-workflow.yml](examples/advanced-workflow.yml).
 
 ## License
 

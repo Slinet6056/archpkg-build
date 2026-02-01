@@ -1,0 +1,119 @@
+name: Build and Update Repository
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  get-changed-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.changed-pkgbuilds.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+          lfs: true
+          token: ${{ secrets.PAT || github.token }}
+      - name: Get changed PKGBUILD files
+        id: changed-pkgbuilds
+        run: |
+          git submodule update --init --recursive
+          git fetch --all
+
+          # Detect changed packages
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            last_run=$(git log -1 --format=%ct)
+            changed_pkgbuilds=$(git diff --name-only @{${last_run}} HEAD -- . ':(exclude).gitmodules' | grep 'src/.*/PKGBUILD' || true)
+          else
+            changed_pkgbuilds=$(git diff --name-only HEAD^ HEAD -- . ':(exclude).gitmodules' | grep 'src/.*/PKGBUILD' || true)
+          fi
+
+          submodule_changes=$(git submodule foreach --quiet 'git diff --quiet || echo $name')
+          for submodule in $submodule_changes; do
+            if [[ -f "$submodule/PKGBUILD" ]]; then
+              changed_pkgbuilds+=\n'"$submodule/PKGBUILD"
+            fi
+          done
+
+          # Detect packages missing build artifacts
+          all_packages=$(find src -maxdepth 2 -name PKGBUILD -type f 2>/dev/null | xargs -r dirname | xargs -r -n1 basename)
+          missing_pkgbuilds=""
+
+          for pkg in $all_packages; do
+            if ! ls pkgs/${pkg}-*.pkg.tar.zst 1>/dev/null 2>&1; then
+              missing_pkgbuilds+=\n'"src/${pkg}/PKGBUILD"
+            fi
+          done
+
+          # Merge changed and missing packages
+          all_pkgbuilds=$(echo -e "${changed_pkgbuilds}${missing_pkgbuilds}" | sort -u | grep -v '^ || true)
+
+          if [ -n "$all_pkgbuilds" ]; then
+            packages=$(echo "$all_pkgbuilds" | xargs -n1 dirname | xargs -n1 basename | sort -u | jq -R -s -c 'split("\n")[:-1]')
+            echo "packages=$packages" >> $GITHUB_OUTPUT
+          else
+            echo "packages=[]" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-update:
+    needs: get-changed-packages
+    if: needs.get-changed-packages.outputs.packages != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pkg: ${{ fromJSON(needs.get-changed-packages.outputs.packages) }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: "recursive"
+          lfs: true
+          token: ${{ secrets.PAT || github.token }}
+
+      - name: Initialize matrix lock
+        if: ${{ matrix.pkg == fromJSON(needs.get-changed-packages.outputs.packages)[0] }}
+        uses: Slinet6056/matrix-lock@v1
+        with:
+          step: init
+          order: "${{ join(fromJSON(needs.get-changed-packages.outputs.packages), ',') }}"
+
+      - name: Wait for matrix lock
+        uses: Slinet6056/matrix-lock@v1
+        with:
+          step: wait
+          id: ${{ matrix.pkg }}
+
+      - name: Pull latest changes
+        run: |
+          git pull
+
+      - name: Build package and update repository
+        uses: Slinet6056/archpkg-build@master
+        with:
+          package_name: ${{ matrix.pkg }}
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          pkgs_path: src
+          repo_name: slinet
+          repo_path: pkgs
+
+      - name: Commit and push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git lfs install
+          git add pkgs/
+          git commit -m "chore: update repository - ${{ matrix.pkg }}" && git push
+
+      - name: Continue matrix lock
+        uses: Slinet6056/matrix-lock@v1
+        with:
+          step: continue
+          id: ${{ matrix.pkg }}
