@@ -1,9 +1,7 @@
 FROM archlinux:base-devel
 
-# Update package database only (not full system upgrade) and install essential packages
-# This reduces build time and image size while keeping dependencies current
-RUN pacman -Sy --noconfirm && \
-    pacman -S --noconfirm --needed git && \
+# Upgrade the base image with dependencies to avoid unsupported partial upgrades.
+RUN pacman -Syu --noconfirm --needed git && \
     # Clean package cache to reduce image size
     pacman -Scc --noconfirm && \
     rm -rf /var/cache/pacman/pkg/*
